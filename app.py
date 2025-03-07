@@ -6,8 +6,12 @@ import requests
 import sys
 from backend import run_backend
 from frontend import run_frontend
+import atexit
+import signal
 
 def start_backend():
+    global backend_thread  # Make it global so we can access it for cleanup
+    
     backend_thread = threading.Thread(target=run_backend)
     backend_thread.daemon = True
     backend_thread.start()
@@ -19,9 +23,10 @@ def start_backend():
     while time.time() - start_time < max_wait:
         try:
             # Try to connect to the backend
-            requests.get("http://localhost:5000", timeout=1)
-            print("Backend server started successfully")
-            return True
+            response = requests.get("http://localhost:5000", timeout=1)
+            if response.status_code == 200:
+                print("Backend server started successfully")
+                return True
         except requests.exceptions.ConnectionError:
             # Check if database file exists (a sign that the backend is running)
             if os.path.exists('sudoku.db') or os.path.exists('instance/sudoku.db'):

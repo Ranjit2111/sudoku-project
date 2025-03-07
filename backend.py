@@ -4,9 +4,19 @@ from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from database import db, User, Game
 import json
+import os
+import sys
+
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///sudoku.db'
+if getattr(sys, 'frozen', False):
+    # If the application is run as a bundle (compiled with PyInstaller)
+    basedir = os.path.dirname(sys.executable)
+else:
+    # If the application is run from script
+    basedir = os.path.abspath(os.path.dirname(__file__))
+# Configure the database path
+app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{os.path.join(basedir, "sudoku.db")}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
 
@@ -86,6 +96,12 @@ def delete_game(user_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({"message": f"Error deleting game: {str(e)}"}), 500
+    
+
+@app.route('/', methods=['GET'])
+def health_check():
+    """Simple health check endpoint"""
+    return jsonify({"status": "ok"}), 200
 
 def run_backend():
     try:
