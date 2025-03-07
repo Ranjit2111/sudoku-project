@@ -36,6 +36,10 @@ def valid(board, pos, num):
     return True
 
 def solve(board):
+    """
+    Solve the Sudoku board using backtracking.
+    Returns True if a solution is found, False otherwise.
+    """
     empty = find_empty(board)
     if not empty:
         return True
@@ -96,6 +100,7 @@ def generate_board(difficulty='medium'):
     """
     Generate a Sudoku board with the specified difficulty.
     Difficulty levels: 'easy', 'medium', 'hard'
+    Returns a board with exactly one solution.
     """
     # Start with an empty board
     board = [[0 for _ in range(9)] for _ in range(9)]
@@ -117,63 +122,51 @@ def generate_board(difficulty='medium'):
     solution = [row[:] for row in board]
     
     # Set target filled cells based on difficulty
+    # Adjusted to create more solvable puzzles
     if difficulty == 'easy':
-        target_filled = randint(35, 40)  # More filled cells = easier
+        target_filled = randint(40, 45)  # More filled cells = easier
     elif difficulty == 'medium':
-        target_filled = randint(30, 34)
+        target_filled = randint(35, 39)
     else:  # 'hard'
-        target_filled = randint(25, 29)  # Fewer filled cells = harder
+        target_filled = randint(30, 34)  # Fewer filled cells = harder
     
-    # Remove cells to create the puzzle
-    cells = [(i, j) for i in range(9) for j in range(9)]
-    shuffle(cells)
+    # Define how many cells we want to remove
+    cells_to_remove = 81 - target_filled
     
-    # First, remove a significant number of cells quickly
-    # But leave more cells filled than the target to ensure we have room for unique solution checks
-    initial_remove = 81 - (target_filled + 15)  # Keep more cells initially
-    for i, j in cells[:initial_remove]:
-        temp = board[i][j]
-        board[i][j] = 0
-        
-        # If this creates an invalid board, put the cell back
-        board_copy = copy.deepcopy(board)
-        if not solve(board_copy):
-            board[i][j] = temp
-        
-    # Then carefully remove more cells while ensuring a unique solution
-    for i, j in cells[initial_remove:]:
-        if board[i][j] == 0:
-            continue
-            
-        temp = board[i][j]
-        board[i][j] = 0
-        
-        # If removing this cell creates multiple solutions or no solution, put it back
-        solutions = count_solutions(board)
-        if solutions != 1:
-            board[i][j] = temp
-            
-        # Stop when we've reached the desired number of filled cells
-        filled_cells = sum(1 for row in board for cell in row if cell != 0)
-        if filled_cells <= target_filled:
+    # Get all cell positions and shuffle them
+    all_cells = [(i, j) for i in range(9) for j in range(9)]
+    shuffle(all_cells)
+    
+    # Remove cells one by one, ensuring we maintain a unique solution
+    removed = 0
+    for i, j in all_cells:
+        # Skip if we've already removed enough cells
+        if removed >= cells_to_remove:
             break
+            
+        # Remember the value before removing
+        temp = board[i][j]
+        board[i][j] = 0
+        
+        # Check if board still has exactly one solution
+        if count_solutions(board) != 1:
+            # If not, restore the cell
+            board[i][j] = temp
+        else:
+            removed += 1
     
-    # Final validation - make sure the board is solvable and has exactly one solution
-    if not is_fully_solvable(board):
-        # If we somehow ended up with an invalid board, try again
-        return generate_board(difficulty)
-    
-    # Double-check the board doesn't have obvious errors
+    # Final validation - ensure no duplicate numbers in rows, columns or boxes
     for i in range(9):
-        # Check rows and columns for duplicates
+        # Check rows
         row_vals = [board[i][j] for j in range(9) if board[i][j] != 0]
         if len(row_vals) != len(set(row_vals)):
-            # Found duplicates in a row, regenerate
+            # Found duplicates, regenerate
             return generate_board(difficulty)
             
+        # Check columns
         col_vals = [board[j][i] for j in range(9) if board[j][i] != 0]
         if len(col_vals) != len(set(col_vals)):
-            # Found duplicates in a column, regenerate
+            # Found duplicates, regenerate
             return generate_board(difficulty)
     
     # Check 3x3 boxes
@@ -186,9 +179,15 @@ def generate_board(difficulty='medium'):
                     if val != 0:
                         box_vals.append(val)
             if len(box_vals) != len(set(box_vals)):
-                # Found duplicates in a box, regenerate
+                # Found duplicates, regenerate
                 return generate_board(difficulty)
     
+    # Make sure the board is solvable
+    test_board = copy.deepcopy(board)
+    if not solve(test_board):
+        # This shouldn't happen given our checks, but just in case
+        return generate_board(difficulty)
+        
     return board
 
 def board_to_string(board):

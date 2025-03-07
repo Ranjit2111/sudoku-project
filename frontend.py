@@ -4,7 +4,8 @@ from tkinter import messagebox, simpledialog, Toplevel, ttk
 import requests
 import json
 import sys
-from sudoku_logic import generate_board, solve, board_to_string, string_to_board, is_valid_board
+from sudoku_logic import generate_board, solve, board_to_string, string_to_board, is_valid_board, count_solutions
+import copy
 
 API_URL = "http://localhost:5000"
 
@@ -193,35 +194,30 @@ class SudokuGUI:
         self.current_focus = (row, col)
 
     def generate_playable_board(self):
-        """Generate a board with sufficient empty cells for gameplay"""
-        attempts = 0
-        max_attempts = 5
-        min_empty_cells = 35  # Ensure at least 35 empty cells (about 40-45% of the board)
+        """Generate a board with a guaranteed single solution"""
+        # We'll use the improved generate_board function from sudoku_logic
+        # The improved function already ensures a valid board with a single solution
+        difficulties = ['easy', 'medium', 'hard']
+        selected_difficulty = difficulties[1]  # Default to medium difficulty
         
-        while attempts < max_attempts:
-            board = generate_board()
-            empty_count = sum(1 for row in board for cell in row if cell == 0)
+        # Generate board using the improved function in sudoku_logic.py
+        board = None
+        max_attempts = 3
+        attempt = 0
+        
+        while attempt < max_attempts:
+            try:
+                board = generate_board(difficulty=selected_difficulty)
+                # Verify the board has exactly one solution and is valid
+                board_copy = copy.deepcopy(board)
+                if solve(board_copy) and count_solutions(board) == 1:
+                    return board
+            except Exception:
+                pass  # Try again if any error occurs
+            attempt += 1
             
-            if empty_count >= min_empty_cells:
-                return board
-            
-            attempts += 1
-        
-        # If we couldn't generate a board with enough empty cells, ensure it manually
-        board = generate_board()
-        filled_cells = [(i, j) for i in range(9) for j in range(9) if board[i][j] != 0]
-        
-        # Remove cells until we have the minimum required empty cells
-        import random
-        random.shuffle(filled_cells)
-        
-        for i, j in filled_cells:
-            board[i][j] = 0
-            empty_count = sum(1 for row in board for cell in row if cell == 0)
-            if empty_count >= min_empty_cells:
-                break
-        
-        return board
+        # If we had trouble generating a board, try with 'easy' difficulty as fallback
+        return generate_board(difficulty='easy')
 
     def new_game(self):
         """Create a new game board and update the UI"""
@@ -238,6 +234,24 @@ class SudokuGUI:
             self.original_board = [[cell for cell in row] for row in self.board]
             self.hints_used = 0
             self.solved_by_algorithm = False
+            
+            # Save the new game with is_new_game flag set to True to increment the counter
+            try:
+                requests.post(f"{API_URL}/save_game", json={
+                    "user_id": self.user_id,
+                    "board_state": json.dumps(self.board),
+                    "original_board": json.dumps(self.original_board),
+                    "completed": False,
+                    "hints_used": 0,
+                    "solved_by_algorithm": False,
+                    "is_new_game": True
+                })
+                
+                # Update the local counter for display
+                self.user_stats['puzzles_played'] += 1
+            except Exception as e:
+                messagebox.showerror("Error", f"Could not create new game: {e}")
+                
             self.create_game_screen()
 
     def reset_board(self):
@@ -329,8 +343,16 @@ class SudokuGUI:
                 row.append(val)
             current_board.append(row)
         
-        # Get the solution
-        solution_board = [row[:] for row in current_board]
+        # Check if the current board is valid before attempting to solve
+        if not is_valid_board(current_board):
+            messagebox.showerror("Invalid Board", "The current board has conflicts (duplicate numbers). Please fix them first.")
+            # Revert the hint counter since we didn't actually use a hint
+            self.hints_used -= 1
+            self.hints_label.config(text=f"Hints Used: {self.hints_used}/2")
+            return
+            
+        # Create a copy of the board for solving
+        solution_board = copy.deepcopy(current_board)
         if solve(solution_board):
             # If a cell is focused, provide hint for that specific cell
             if self.current_focus:
@@ -344,9 +366,12 @@ class SudokuGUI:
                     return
                 else:
                     messagebox.showinfo("Hint", "This cell is already filled. Please select an empty cell.")
+                    # Revert the hint counter since we didn't actually use a hint
+                    self.hints_used -= 1
+                    self.hints_label.config(text=f"Hints Used: {self.hints_used}/2")
                     return
             
-            # If no cell is focused, use the original behavior (find first empty cell)
+            # If no cell is focused, find first empty cell
             for i in range(9):
                 for j in range(9):
                     if current_board[i][j] == 0:
@@ -358,8 +383,19 @@ class SudokuGUI:
                         return
                         
             messagebox.showinfo("Hint", "No empty cells available for a hint.")
+            # Revert the hint counter
+            self.hints_used -= 1
+            self.hints_label.config(text=f"Hints Used: {self.hints_used}/2")
         else:
-            messagebox.showerror("Error", "Unable to compute hint. The current board configuration may not have a valid solution.")
+            # Revert the hint counter since we couldn't provide a hint
+            self.hints_used -= 1
+            self.hints_label.config(text=f"Hints Used: {self.hints_used}/2")
+            
+            # Attempt to identify the cause of the error
+            if not is_valid_board(current_board):
+                messagebox.showerror("Error", "The current board has conflicts. Please check for duplicate numbers in rows, columns, or 3x3 boxes.")
+            else:
+                messagebox.showerror("Error", "Unable to compute hint. The current board configuration may not have a valid solution.")
 
     def check_solution(self):
         """Check if the current board state is correct"""
@@ -407,10 +443,7 @@ class SudokuGUI:
             messagebox.showinfo("Incorrect", "Your solution contains errors. Please check and try again.")
 
     def solve_board(self):
-        # Mark that the solve algorithm was used
-        self.solved_by_algorithm = True
-        
-        # Solve and display the complete solution
+        # Get current board state
         current_board = []
         for i in range(9):
             row = []
@@ -423,17 +456,34 @@ class SudokuGUI:
                 row.append(val)
             current_board.append(row)
             
-        if solve(current_board):
+        # Check if the current board is valid before attempting to solve
+        if not is_valid_board(current_board):
+            messagebox.showerror("Invalid Board", "The current board has conflicts (duplicate numbers). Please fix them first.")
+            return
+            
+        # Create a copy for solving to avoid modifying the original
+        solution_board = copy.deepcopy(current_board)
+        
+        if solve(solution_board):
+            # Mark that the solve algorithm was used
+            self.solved_by_algorithm = True
+            
+            # Update the board with the solution
             for i in range(9):
                 for j in range(9):
                     if self.original_board[i][j] == 0:  # Only update non-original cells
                         self.entries[i][j].delete(0, tk.END)
-                        self.entries[i][j].insert(0, str(current_board[i][j]))
+                        self.entries[i][j].insert(0, str(solution_board[i][j]))
                         self.entries[i][j].config(bg="#ABEBC6")  # Light green for solved cells
+            
             self.save_game(completed=True)
             messagebox.showinfo("Solved", "Puzzle solved! Note that using the solve button means this won't count as a win.")
         else:
-            messagebox.showerror("Error", "No solution exists for the current board.")
+            # Attempt to identify the cause of the error
+            if not is_valid_board(current_board):
+                messagebox.showerror("Error", "The current board has conflicts. Please check for duplicate numbers in rows, columns, or 3x3 boxes.")
+            else:
+                messagebox.showerror("Error", "No solution exists for the current board. There might be a mistake in the entries.")
 
     def show_leaderboard(self):
         """Display leaderboard in a new window"""
