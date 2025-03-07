@@ -81,7 +81,7 @@ class SudokuGUI:
                 # Load user statistics from login response
                 if "stats" in data:
                     self.user_stats = data["stats"]
-                self.create_game_screen()
+                self.create_home_screen()  # Go to home screen instead of game screen
             else:
                 messagebox.showerror("Login Failed", response.json().get("message", "Error logging in"))
         except Exception as e:
@@ -105,35 +105,248 @@ class SudokuGUI:
         except Exception as e:
             messagebox.showerror("Error", f"Could not connect to backend. {e}")
 
-    def create_game_screen(self):
+    def create_home_screen(self):
+        """Create a home screen with game options"""
         self.clear_root()
         
-        # Attempt to load a saved game; if none, generate a new one
-        loaded_game = self.load_saved_game()
-        if loaded_game:
-            self.board = loaded_game["board_state"]
-            self.original_board = loaded_game["original_board"]
-            self.hints_used = loaded_game.get("hints_used", 0)
-            self.solved_by_algorithm = loaded_game.get("solved_by_algorithm", False)
+        # Main frame
+        main_frame = tk.Frame(self.root)
+        main_frame.pack(pady=50, fill="both", expand=True)
+        
+        # Welcome header with user statistics
+        welcome_frame = tk.Frame(main_frame)
+        welcome_frame.pack(pady=10, fill="x")
+        
+        welcome_text = f"Welcome! Games Played: {self.user_stats['puzzles_played']} | Games Won: {self.user_stats['puzzles_solved']} | Win Rate: {self.user_stats['win_percentage']:.1f}%"
+        tk.Label(welcome_frame, text=welcome_text, font=("Helvetica", 14)).pack(pady=5)
+        
+        # Logout button in top right
+        logout_btn = tk.Button(
+            welcome_frame, 
+            text="Logout", 
+            font=("Helvetica", 12), 
+            command=self.logout, 
+            bg="#7D3C98", 
+            fg="white",
+            width=8
+        )
+        logout_btn.place(relx=1.0, rely=0.0, anchor="ne")
+        
+        # Buttons frame
+        buttons_frame = tk.Frame(main_frame)
+        buttons_frame.pack(pady=50)
+        
+        # New Game button (opens difficulty selection)
+        new_game_btn = tk.Button(
+            buttons_frame,
+            text="New Game",
+            font=("Helvetica", 16, "bold"),
+            command=self.show_difficulty_selection,
+            bg="#2ECC71",
+            fg="white",
+            width=15,
+            height=2
+        )
+        new_game_btn.pack(pady=15)
+        
+        # Leaderboard button
+        leaderboard_btn = tk.Button(
+            buttons_frame,
+            text="Leaderboard",
+            font=("Helvetica", 16),
+            command=self.show_leaderboard,
+            bg="#9B59B6",
+            fg="white",
+            width=15,
+            height=2
+        )
+        leaderboard_btn.pack(pady=15)
+        
+        # Load last game button (if exists)
+        last_game_exists = self.check_saved_game_exists()
+        if last_game_exists:
+            continue_btn = tk.Button(
+                buttons_frame,
+                text="Continue Game",
+                font=("Helvetica", 16),
+                command=lambda: self.create_game_screen(False, True),  # False for new_game, True for continue_game
+                bg="#3498DB",
+                fg="white",
+                width=15,
+                height=2
+            )
+            continue_btn.pack(pady=15)
+    
+    def check_saved_game_exists(self):
+        """Check if a saved game exists for the current user"""
+        try:
+            response = requests.get(f"{API_URL}/load_game/{self.user_id}")
+            return response.status_code == 200 and "board_state" in response.json()
+        except:
+            return False
+    
+    def show_difficulty_selection(self, is_new_game=False):
+        """Show difficulty selection dialog"""
+        # Create a new top-level window
+        difficulty_window = Toplevel(self.root)
+        difficulty_window.title("Select Difficulty")
+        difficulty_window.geometry("300x300")
+        difficulty_window.transient(self.root)  # Set to be on top of the main window
+        difficulty_window.grab_set()  # Modal window
+        
+        # Center the window
+        difficulty_window.update_idletasks()
+        width = difficulty_window.winfo_width()
+        height = difficulty_window.winfo_height()
+        x = (difficulty_window.winfo_screenwidth() // 2) - (width // 2)
+        y = (difficulty_window.winfo_screenheight() // 2) - (height // 2)
+        difficulty_window.geometry('{}x{}+{}+{}'.format(width, height, x, y))
+        
+        # Title
+        tk.Label(
+            difficulty_window, 
+            text="Select Difficulty", 
+            font=("Helvetica", 16, "bold")
+        ).pack(pady=20)
+        
+        # Difficulty levels frame
+        levels_frame = tk.Frame(difficulty_window)
+        levels_frame.pack(pady=10)
+        
+        # Easy button
+        easy_btn = tk.Button(
+            levels_frame,
+            text="Easy",
+            font=("Helvetica", 14),
+            bg="#2ECC71",
+            fg="white",
+            width=10,
+            command=lambda: self.start_game_with_difficulty("easy", difficulty_window, is_new_game)
+        )
+        easy_btn.pack(pady=10)
+        
+        # Medium button
+        medium_btn = tk.Button(
+            levels_frame,
+            text="Medium",
+            font=("Helvetica", 14),
+            bg="#F39C12",
+            fg="white",
+            width=10,
+            command=lambda: self.start_game_with_difficulty("medium", difficulty_window, is_new_game)
+        )
+        medium_btn.pack(pady=10)
+        
+        # Hard button
+        hard_btn = tk.Button(
+            levels_frame,
+            text="Hard",
+            font=("Helvetica", 14),
+            bg="#E74C3C",
+            fg="white",
+            width=10,
+            command=lambda: self.start_game_with_difficulty("hard", difficulty_window, is_new_game)
+        )
+        hard_btn.pack(pady=10)
+    
+    def start_game_with_difficulty(self, difficulty, dialog_window, is_new_game):
+        """Start a new game with the selected difficulty"""
+        # Store the selected difficulty
+        self.selected_difficulty = difficulty
+        # Close the difficulty selection dialog
+        dialog_window.destroy()
+        
+        # Handle different scenarios
+        if is_new_game:
+            # We're starting a new game from within an existing game
+            if messagebox.askyesno("New Game", "Are you sure you want to start a new game? Your current progress will be lost."):
+                self.new_game()
         else:
-            # Generate a new board with enough empty cells
-            self.board = self.generate_playable_board()
+            # We're starting a game from the home screen
+            self.create_game_screen(True)
+            
+    def create_game_screen(self, new_game=False, continue_game=False):
+        self.clear_root()
+        
+        # If continuing a game, force load saved game
+        if continue_game:
+            loaded_game = self.load_saved_game()
+            if loaded_game:
+                self.board = loaded_game["board_state"]
+                self.original_board = loaded_game["original_board"]
+                self.hints_used = loaded_game.get("hints_used", 0)
+                self.solved_by_algorithm = loaded_game.get("solved_by_algorithm", False)
+            else:
+                # If somehow we can't load the game, go back to the home screen
+                messagebox.showerror("Error", "Could not load the saved game.")
+                self.create_home_screen()
+                return
+        # If starting a new game or no saved game exists (and not explicitly continuing)
+        elif new_game or not self.load_saved_game():
+            # Generate a new board with the selected difficulty
+            if hasattr(self, 'selected_difficulty'):
+                self.board = self.generate_playable_board(self.selected_difficulty)
+            else:
+                self.board = self.generate_playable_board("medium")  # Default difficulty
+                
             self.original_board = [[cell for cell in row] for row in self.board]
             self.hints_used = 0
             self.solved_by_algorithm = False
+            
+            # Save new game with is_new_game flag if it's a new game (not initial load)
+            if new_game:
+                try:
+                    requests.post(f"{API_URL}/save_game", json={
+                        "user_id": self.user_id,
+                        "board_state": json.dumps(self.board),
+                        "original_board": json.dumps(self.original_board),
+                        "completed": False,
+                        "hints_used": 0,
+                        "solved_by_algorithm": False,
+                        "is_new_game": True
+                    })
+                    
+                    # Update the local counter for display
+                    self.user_stats['puzzles_played'] += 1
+                except Exception as e:
+                    messagebox.showerror("Error", f"Could not create new game: {e}")
         
-        # Create a frame for user stats display
-        stats_frame = tk.Frame(self.root)
-        stats_frame.pack(pady=5)
+        # Main container frame
+        main_container = tk.Frame(self.root)
+        main_container.pack(fill="both", expand=True, padx=10, pady=10)
+        
+        # Top stats and logout frame
+        top_frame = tk.Frame(main_container)
+        top_frame.pack(fill="x", pady=5)
+        
+        # Stats display
         stats_text = f"Games Played: {self.user_stats['puzzles_played']} | Games Won: {self.user_stats['puzzles_solved']} | Win Rate: {self.user_stats['win_percentage']:.1f}%"
-        tk.Label(stats_frame, text=stats_text, font=("Helvetica", 12)).pack()
+        stats_label = tk.Label(top_frame, text=stats_text, font=("Helvetica", 12))
+        stats_label.pack(side="left")
         
-        # Create Sudoku board grid
+        # Logout button (top right)
+        logout_btn = tk.Button(
+            top_frame, 
+            text="Logout", 
+            font=("Helvetica", 12), 
+            command=self.logout,
+            bg="#7D3C98", 
+            fg="white"
+        )
+        logout_btn.pack(side="right")
+        
+        # Game info display (hints used)
+        info_frame = tk.Frame(main_container)
+        info_frame.pack(pady=5)
+        self.hints_label = tk.Label(info_frame, text=f"Hints Used: {self.hints_used}/2", font=("Helvetica", 12))
+        self.hints_label.pack()
+        
+        # Sudoku board grid
         self.entries = []
-        board_frame = tk.Frame(self.root)
+        board_frame = tk.Frame(main_container)
         board_frame.pack(pady=10)
         
-        # Create a grid for the Sudoku board with visual separation for 3x3 boxes
+        # Create the Sudoku grid
         for i in range(9):
             row_entries = []
             for j in range(9):
@@ -158,33 +371,28 @@ class SudokuGUI:
                     if self.original_board[i][j] != 0:
                         e.config(state="disabled", disabledforeground="black")
                     else:
-                        # Apply highlight for hints if the board was loaded with hints
+                        # Apply highlight for hints
                         e.config(bg="#D4E6F1")
                 row_entries.append(e)
             self.entries.append(row_entries)
-            
-        # Game info display
-        info_frame = tk.Frame(self.root)
-        info_frame.pack(pady=5)
-        self.hints_label = tk.Label(info_frame, text=f"Hints Used: {self.hints_used}/2", font=("Helvetica", 12))
-        self.hints_label.pack()
-            
-        # Buttons for game options (first row)
-        btn_frame1 = tk.Frame(self.root)
+        
+        # Buttons below the puzzle (line 1)
+        btn_frame1 = tk.Frame(main_container)
         btn_frame1.pack(pady=5)
         tk.Button(btn_frame1, text="Hint", font=("Helvetica", 14), command=self.hint, bg="#3498DB", fg="white", width=8).grid(row=0, column=0, padx=5)
-        tk.Button(btn_frame1, text="Reset", font=("Helvetica", 14), command=self.reset_board, bg="#E74C3C", fg="white", width=8).grid(row=0, column=1, padx=5)
-        tk.Button(btn_frame1, text="Solve", font=("Helvetica", 14), command=self.solve_board, bg="#1ABC9C", fg="white", width=8).grid(row=0, column=2, padx=5)
+        tk.Button(btn_frame1, text="Solve", font=("Helvetica", 14), command=self.solve_board, bg="#1ABC9C", fg="white", width=8).grid(row=0, column=1, padx=5)
+        tk.Button(btn_frame1, text="Check Solution", font=("Helvetica", 14), command=self.check_solution, bg="#F39C12", fg="white", width=14).grid(row=0, column=2, padx=5)
         
-        # Buttons for game options (second row)
-        btn_frame2 = tk.Frame(self.root)
+        # Buttons below the puzzle (line 2)
+        btn_frame2 = tk.Frame(main_container)
         btn_frame2.pack(pady=5)
-        tk.Button(btn_frame2, text="New Game", font=("Helvetica", 14), command=self.new_game, bg="#2ECC71", fg="white", width=8).grid(row=0, column=0, padx=5)
-        tk.Button(btn_frame2, text="Leaderboard", font=("Helvetica", 14), command=self.show_leaderboard, bg="#9B59B6", fg="white", width=10).grid(row=0, column=1, padx=5)
-        tk.Button(btn_frame2, text="Logout", font=("Helvetica", 14), command=self.logout, bg="#7D3C98", fg="white", width=8).grid(row=0, column=2, padx=5)
+        tk.Button(btn_frame2, text="Reset", font=("Helvetica", 14), command=self.reset_board, bg="#E74C3C", fg="white", width=10).grid(row=0, column=0, padx=5)
+        tk.Button(btn_frame2, text="New Game", font=("Helvetica", 14), command=lambda: self.show_difficulty_selection(True), bg="#2ECC71", fg="white", width=10).grid(row=0, column=1, padx=5)
         
-        # Check solution button
-        tk.Button(self.root, text="Check Solution", font=("Helvetica", 16), command=self.check_solution, bg="#F39C12", fg="white", width=15).pack(pady=10)
+        # Buttons below the puzzle (line 3)
+        btn_frame3 = tk.Frame(main_container)
+        btn_frame3.pack(pady=5)
+        tk.Button(btn_frame3, text="Leaderboard", font=("Helvetica", 14), command=self.show_leaderboard, bg="#9B59B6", fg="white", width=14).pack()
         
         # Ensure game state is saved when closing
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
@@ -193,12 +401,10 @@ class SudokuGUI:
         """Track the currently focused cell for targeted hints"""
         self.current_focus = (row, col)
 
-    def generate_playable_board(self):
+    def generate_playable_board(self, difficulty="medium"):
         """Generate a board with a guaranteed single solution"""
         # We'll use the improved generate_board function from sudoku_logic
         # The improved function already ensures a valid board with a single solution
-        difficulties = ['easy', 'medium', 'hard']
-        selected_difficulty = difficulties[1]  # Default to medium difficulty
         
         # Generate board using the improved function in sudoku_logic.py
         board = None
@@ -207,7 +413,7 @@ class SudokuGUI:
         
         while attempt < max_attempts:
             try:
-                board = generate_board(difficulty=selected_difficulty)
+                board = generate_board(difficulty=difficulty)
                 # Verify the board has exactly one solution and is valid
                 board_copy = copy.deepcopy(board)
                 if solve(board_copy) and count_solutions(board) == 1:
@@ -221,38 +427,41 @@ class SudokuGUI:
 
     def new_game(self):
         """Create a new game board and update the UI"""
-        if messagebox.askyesno("New Game", "Are you sure you want to start a new game? Your current progress will be lost."):
-            # Delete current game from the backend
-            try:
-                if self.user_id:
-                    requests.delete(f"{API_URL}/delete_game/{self.user_id}")
-            except Exception:
-                pass  # Ignore errors here
+        # Delete current game from the backend
+        try:
+            if self.user_id:
+                requests.delete(f"{API_URL}/delete_game/{self.user_id}")
+        except Exception:
+            pass  # Ignore errors here
+        
+        # Generate a new board and refresh the UI
+        if hasattr(self, 'selected_difficulty'):
+            self.board = self.generate_playable_board(self.selected_difficulty)
+        else:
+            self.board = self.generate_playable_board("medium")  # Default to medium if no selection
             
-            # Generate a new board and refresh the UI
-            self.board = self.generate_playable_board()
-            self.original_board = [[cell for cell in row] for row in self.board]
-            self.hints_used = 0
-            self.solved_by_algorithm = False
+        self.original_board = [[cell for cell in row] for row in self.board]
+        self.hints_used = 0
+        self.solved_by_algorithm = False
+        
+        # Save the new game with is_new_game flag set to True to increment the counter
+        try:
+            requests.post(f"{API_URL}/save_game", json={
+                "user_id": self.user_id,
+                "board_state": json.dumps(self.board),
+                "original_board": json.dumps(self.original_board),
+                "completed": False,
+                "hints_used": 0,
+                "solved_by_algorithm": False,
+                "is_new_game": True
+            })
             
-            # Save the new game with is_new_game flag set to True to increment the counter
-            try:
-                requests.post(f"{API_URL}/save_game", json={
-                    "user_id": self.user_id,
-                    "board_state": json.dumps(self.board),
-                    "original_board": json.dumps(self.original_board),
-                    "completed": False,
-                    "hints_used": 0,
-                    "solved_by_algorithm": False,
-                    "is_new_game": True
-                })
-                
-                # Update the local counter for display
-                self.user_stats['puzzles_played'] += 1
-            except Exception as e:
-                messagebox.showerror("Error", f"Could not create new game: {e}")
-                
-            self.create_game_screen()
+            # Update the local counter for display
+            self.user_stats['puzzles_played'] += 1
+        except Exception as e:
+            messagebox.showerror("Error", f"Could not create new game: {e}")
+            
+        self.create_game_screen()
 
     def reset_board(self):
         """Reset the current board to its original state"""
@@ -553,4 +762,4 @@ def run_frontend():
     root.mainloop()
 
 if __name__ == "__main__":
-    run_frontend()
+    run_frontend() 
