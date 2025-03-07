@@ -71,8 +71,15 @@ def save_game():
         # Look for an existing unfinished game for this user
         game = Game.query.filter_by(user_id=data['user_id'], completed=False).first()
         
+        # Check if this is a new game creation 
+        is_new_game = False
+        if not game:
+            is_new_game = True
+            
         if game:
+            # Update existing game
             game.board_state = data['board_state']
+            was_completed = game.completed
             game.completed = data.get('completed', False)
             
             # Update hints and solved status
@@ -82,7 +89,7 @@ def save_game():
                 game.solved_by_algorithm = data['solved_by_algorithm']
                 
             # If game is completed, update user statistics
-            if data.get('completed', False) and not game.completed:
+            if data.get('completed', False) and not was_completed:
                 user = User.query.get(data['user_id'])
                 user.puzzles_played += 1
                 
@@ -104,6 +111,22 @@ def save_game():
                 solved_by_algorithm=data.get('solved_by_algorithm', False)
             )
             db.session.add(game)
+            
+            # If this is a new game creation after explicitly starting a new game
+            # (not just loading the app for the first time)
+            if data.get('is_new_game', False):
+                user = User.query.get(data['user_id'])
+                # Increment games_played if the previous game was abandoned
+                previous_completed_game = Game.query.filter_by(
+                    user_id=data['user_id'], 
+                    completed=True
+                ).order_by(Game.updated_at.desc()).first()
+                
+                # If there's no previous completed game or the last game was explicitly marked as completed
+                if not previous_completed_game:
+                    user.puzzles_played += 1
+                    if user.puzzles_played > 0:
+                        user.win_percentage = (user.puzzles_solved / user.puzzles_played) * 100
         
         db.session.commit()
         return jsonify({"message": "Game saved successfully"}), 200
@@ -148,8 +171,8 @@ def delete_game(user_id):
 @app.route('/leaderboard', methods=['GET'])
 def get_leaderboard():
     try:
-        # Get all users sorted by win percentage (descending)
-        users = User.query.filter(User.puzzles_played > 0).order_by(User.win_percentage.desc()).all()
+        # Get all users (not just those who have played games)
+        users = User.query.order_by(User.win_percentage.desc(), User.puzzles_solved.desc()).all()
         
         leaderboard = []
         for user in users:
