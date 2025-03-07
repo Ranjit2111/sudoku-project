@@ -7,18 +7,24 @@ import json
 import os
 import sys
 
-
 app = Flask(__name__)
+
+# Get the base directory of the application
 if getattr(sys, 'frozen', False):
     # If the application is run as a bundle (compiled with PyInstaller)
     basedir = os.path.dirname(sys.executable)
 else:
     # If the application is run from script
     basedir = os.path.abspath(os.path.dirname(__file__))
-# Configure the database path
+
 app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{os.path.join(basedir, "sudoku.db")}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
+
+@app.route('/', methods=['GET'])
+def health_check():
+    """Simple health check endpoint"""
+    return jsonify({"status": "ok"}), 200
 
 @app.route('/register', methods=['POST'])
 def register():
@@ -41,7 +47,15 @@ def login():
         return jsonify({"message": "Missing username or password"}), 400
     user = User.query.filter_by(username=data['username']).first()
     if user and check_password_hash(user.password, data['password']):
-        return jsonify({"message": "Login successful", "user_id": user.id}), 200
+        return jsonify({
+            "message": "Login successful", 
+            "user_id": user.id,
+            "stats": {
+                "puzzles_played": user.puzzles_played,
+                "puzzles_solved": user.puzzles_solved,
+                "win_percentage": user.win_percentage
+            }
+        }), 200
     return jsonify({"message": "Invalid credentials"}), 401
 
 @app.route('/save_game', methods=['POST'])
@@ -56,11 +70,39 @@ def save_game():
         
         # Look for an existing unfinished game for this user
         game = Game.query.filter_by(user_id=data['user_id'], completed=False).first()
+        
         if game:
             game.board_state = data['board_state']
             game.completed = data.get('completed', False)
+            
+            # Update hints and solved status
+            if 'hints_used' in data:
+                game.hints_used = data['hints_used']
+            if 'solved_by_algorithm' in data:
+                game.solved_by_algorithm = data['solved_by_algorithm']
+                
+            # If game is completed, update user statistics
+            if data.get('completed', False) and not game.completed:
+                user = User.query.get(data['user_id'])
+                user.puzzles_played += 1
+                
+                # Count as solved only if user didn't use too many hints or the solve button
+                if game.hints_used <= 2 and not game.solved_by_algorithm:
+                    user.puzzles_solved += 1
+                
+                # Update win percentage
+                if user.puzzles_played > 0:
+                    user.win_percentage = (user.puzzles_solved / user.puzzles_played) * 100
         else:
-            game = Game(user_id=data['user_id'], board_state=data['board_state'], completed=data.get('completed', False))
+            # Create new game with original board state
+            game = Game(
+                user_id=data['user_id'], 
+                board_state=data['board_state'],
+                original_board=data.get('original_board', data['board_state']),
+                completed=data.get('completed', False),
+                hints_used=data.get('hints_used', 0),
+                solved_by_algorithm=data.get('solved_by_algorithm', False)
+            )
             db.session.add(game)
         
         db.session.commit()
@@ -78,7 +120,13 @@ def load_game(user_id):
         if game:
             # Verify the JSON is valid
             board = json.loads(game.board_state)
-            return jsonify({"board_state": game.board_state}), 200
+            original = json.loads(game.original_board)
+            return jsonify({
+                "board_state": game.board_state,
+                "original_board": game.original_board,
+                "hints_used": game.hints_used,
+                "solved_by_algorithm": game.solved_by_algorithm
+            }), 200
         else:
             return jsonify({"message": "No saved game found"}), 404
     except Exception as e:
@@ -96,12 +144,25 @@ def delete_game(user_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({"message": f"Error deleting game: {str(e)}"}), 500
-    
 
-@app.route('/', methods=['GET'])
-def health_check():
-    """Simple health check endpoint"""
-    return jsonify({"status": "ok"}), 200
+@app.route('/leaderboard', methods=['GET'])
+def get_leaderboard():
+    try:
+        # Get all users sorted by win percentage (descending)
+        users = User.query.filter(User.puzzles_played > 0).order_by(User.win_percentage.desc()).all()
+        
+        leaderboard = []
+        for user in users:
+            leaderboard.append({
+                "username": user.username,
+                "puzzles_played": user.puzzles_played,
+                "puzzles_solved": user.puzzles_solved,
+                "win_percentage": round(user.win_percentage, 2)
+            })
+            
+        return jsonify({"leaderboard": leaderboard}), 200
+    except Exception as e:
+        return jsonify({"message": f"Error fetching leaderboard: {str(e)}"}), 500
 
 def run_backend():
     try:

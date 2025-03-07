@@ -77,7 +77,11 @@ def count_solutions(board, limit=2):
     backtrack()
     return solutions[0]
 
-def generate_board():
+def generate_board(difficulty='medium'):
+    """
+    Generate a Sudoku board with the specified difficulty.
+    Difficulty levels: 'easy', 'medium', 'hard'
+    """
     # Start with an empty board
     board = [[0 for _ in range(9)] for _ in range(9)]
     
@@ -95,19 +99,29 @@ def generate_board():
     # Create a copy of the solved board
     solution = [row[:] for row in board]
     
+    # Set target filled cells based on difficulty
+    if difficulty == 'easy':
+        target_filled = randint(30, 35)  # More filled cells = easier
+    elif difficulty == 'medium':
+        target_filled = randint(25, 29)
+    else:  # 'hard'
+        target_filled = randint(20, 24)  # Fewer filled cells = harder
+    
     # Remove cells to create the puzzle
-    # We'll use a more sophisticated approach to ensure unique solution
     cells = [(i, j) for i in range(9) for j in range(9)]
     shuffle(cells)
     
     # First, remove a significant number of cells quickly
-    # Keep around 30 cells filled initially (81-51)
-    for i, j in cells[:51]:
-        temp = board[i][j]
+    # Leave more cells filled than the target to allow for unique solution checks
+    initial_remove = 81 - (target_filled + 10)
+    for i, j in cells[:initial_remove]:
         board[i][j] = 0
         
     # Then carefully remove more cells while ensuring unique solution
-    for i, j in cells[51:]:
+    for i, j in cells[initial_remove:]:
+        if board[i][j] == 0:
+            continue
+            
         temp = board[i][j]
         board[i][j] = 0
         
@@ -115,10 +129,31 @@ def generate_board():
         if count_solutions(board) > 1:
             board[i][j] = temp
             
-        # Stop when we've reached the desired difficulty level
+        # Stop when we've reached the desired number of filled cells
         filled_cells = sum(1 for row in board for cell in row if cell != 0)
-        if filled_cells <= 25:  # Aim for around 25 filled cells for a challenging puzzle
+        if filled_cells <= target_filled:
             break
+    
+    # Ensure we have enough empty cells (at least 30)
+    filled_cells = sum(1 for row in board for cell in row if cell != 0)
+    if filled_cells > target_filled:
+        # If we have more filled cells than target, randomly remove more
+        # but only from cells that maintain a unique solution
+        additional_cells = [(i, j) for i, j in cells if board[i][j] != 0]
+        shuffle(additional_cells)
+        
+        for i, j in additional_cells:
+            if filled_cells <= target_filled:
+                break
+                
+            temp = board[i][j]
+            board[i][j] = 0
+            
+            # If removing creates multiple solutions, put it back
+            if count_solutions(board) > 1:
+                board[i][j] = temp
+            else:
+                filled_cells -= 1
     
     return board
 
