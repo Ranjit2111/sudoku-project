@@ -251,7 +251,7 @@ class SudokuGUI:
         # Create a new top-level window with improved styling
         difficulty_window = Toplevel(self.root)
         difficulty_window.title("Select Difficulty")
-        difficulty_window.geometry("300x350")
+        difficulty_window.geometry("300x420")  # Increased height for better display
         difficulty_window.configure(bg="#EBF5FB")  # Apply background
         difficulty_window.transient(self.root)  # Set to be on top of the main window
         difficulty_window.grab_set()  # Modal window
@@ -271,7 +271,7 @@ class SudokuGUI:
             font=("Helvetica", 22, "bold"),
             fg=self.colors["primary"],
             bg="#EBF5FB"
-        ).pack(pady=20)
+        ).pack(pady=5)
         
         # Description
         tk.Label(
@@ -282,17 +282,21 @@ class SudokuGUI:
             bg="#EBF5FB"
         ).pack(pady=5)
         
+        # Main content frame to ensure proper spacing
+        content_frame = tk.Frame(difficulty_window, bg="#EBF5FB")
+        content_frame.pack(fill="both", expand=True, padx=15, pady=10)
+        
         # Difficulty levels frame with card-like appearance
-        levels_frame = tk.Frame(difficulty_window, bg=self.colors["light"], 
-                              bd=2, relief="solid", padx=20, pady=20)
-        levels_frame.pack(pady=15, padx=20, fill="both", expand=True)
+        levels_frame = tk.Frame(content_frame, bg=self.colors["light"], 
+                              bd=2, relief="solid", padx=10, pady=15)
+        levels_frame.pack(fill="both", expand=True, padx=10, pady=10)
         
         # Create a consistent style for all difficulty buttons
         button_style = {
             "font": ("Helvetica", 14, "bold"),
             "fg": "white",
             "width": 12,
-            "height": 1,
+            "height": 2,  # Increased height for better appearance
             "bd": 0,
             "padx": 10,
             "pady": 8
@@ -306,7 +310,7 @@ class SudokuGUI:
             command=lambda: self.start_game_with_difficulty("easy", difficulty_window, is_new_game),
             **button_style
         )
-        easy_btn.pack(pady=10, fill="x")
+        easy_btn.pack(pady=5)
         
         # Medium button
         medium_btn = tk.Button(
@@ -316,7 +320,7 @@ class SudokuGUI:
             command=lambda: self.start_game_with_difficulty("medium", difficulty_window, is_new_game),
             **button_style
         )
-        medium_btn.pack(pady=10, fill="x")
+        medium_btn.pack(pady=5)
         
         # Hard button
         hard_btn = tk.Button(
@@ -326,7 +330,7 @@ class SudokuGUI:
             command=lambda: self.start_game_with_difficulty("hard", difficulty_window, is_new_game),
             **button_style
         )
-        hard_btn.pack(pady=10, fill="x")
+        hard_btn.pack(pady=5)
     
     def start_game_with_difficulty(self, difficulty, dialog_window, is_new_game):
         """Start a new game with the selected difficulty"""
@@ -372,7 +376,7 @@ class SudokuGUI:
             self.original_board = [[cell for cell in row] for row in self.board]
             self.hints_used = 0
             self.solved_by_algorithm = False
-            
+        
             # Save new game with is_new_game flag if it's a new game (not initial load)
             if new_game:
                 try:
@@ -469,7 +473,7 @@ class SudokuGUI:
                 
                 row_entries.append(e)
             self.entries.append(row_entries)
-        
+            
         # Buttons below the puzzle in a stylish container
         btn_container = tk.Frame(main_container, bg="#EBF5FB")
         btn_container.pack(pady=10)
@@ -573,11 +577,11 @@ class SudokuGUI:
             self.board = self.generate_playable_board(self.selected_difficulty)
         else:
             self.board = self.generate_playable_board("medium")  # Default to medium if no selection
-            
+        
         self.original_board = [[cell for cell in row] for row in self.board]
         self.hints_used = 0
         self.solved_by_algorithm = False
-        
+    
         # Save the new game with is_new_game flag set to True to increment the counter
         try:
             requests.post(f"{API_URL}/save_game", json={
@@ -594,7 +598,7 @@ class SudokuGUI:
             self.user_stats['puzzles_played'] += 1
         except Exception as e:
             messagebox.showerror("Error", f"Could not create new game: {e}")
-            
+        
         self.create_game_screen()
 
     def reset_board(self):
