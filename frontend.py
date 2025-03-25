@@ -21,6 +21,27 @@ class SudokuGUI:
         self.root = root
         self.root.title("Sudoku - Play & Solve")
         self.root.geometry("600x700")
+        # Set nice background color for the entire application
+        self.root.configure(bg="#EBF5FB")  # Light blue background
+        
+        # Define color scheme for the application
+        self.colors = {
+            "primary": "#3498DB",  # Blue
+            "secondary": "#2ECC71",  # Green
+            "accent": "#9B59B6",  # Purple
+            "warning": "#E74C3C",  # Red
+            "info": "#F39C12",  # Orange
+            "light": "#F8F9F9",  # Light gray
+            "dark": "#2C3E50",  # Dark blue/gray
+            "white": "#FFFFFF",
+            "cell_original": "#F8F9F9",  # Light gray for original cells
+            "cell_user": "#D6EAF8",  # Very light blue for user entries
+            "cell_hint": "#D4E6F1",  # Light blue for hints
+            "cell_solved": "#ABEBC6",  # Light green for solved cells
+            "cell_border": "#95A5A6",  # Gray for cell borders
+            "cell_selected": "#D6DBDF"  # Gray for selected cell
+        }
+        
         self.user_id = None
         self.board = None
         self.original_board = None  # Store the original board state
@@ -45,27 +66,44 @@ class SudokuGUI:
 
     def create_login_screen(self):
         self.clear_root()
-        frame = tk.Frame(self.root)
+        self.root.configure(bg="#EBF5FB")  # Apply background to login screen
+        
+        frame = tk.Frame(self.root, bg="#EBF5FB")
         frame.pack(pady=50)
 
-        title = tk.Label(frame, text="Sudoku Solver", font=("Helvetica", 28, "bold"), fg="#2E86C1")
-        title.pack(pady=10)
+        # App logo/title with shadow effect
+        title = tk.Label(frame, text="Sudoku", font=("Helvetica", 40, "bold"), 
+                         fg=self.colors["primary"], bg="#EBF5FB")
+        title.pack(pady=5)
+        subtitle = tk.Label(frame, text="Play & Solve", font=("Helvetica", 18), 
+                           fg=self.colors["dark"], bg="#EBF5FB")
+        subtitle.pack(pady=5)
 
-        form_frame = tk.Frame(frame)
-        form_frame.pack(pady=10)
+        form_frame = tk.Frame(frame, bg="#EBF5FB", bd=2, relief="solid", padx=20, pady=20)
+        form_frame.pack(pady=20)
 
-        tk.Label(form_frame, text="Username:", font=("Helvetica", 16)).grid(row=0, column=0, pady=5, padx=5, sticky="e")
-        self.username_entry = tk.Entry(form_frame, font=("Helvetica", 16))
-        self.username_entry.grid(row=0, column=1, pady=5, padx=5)
+        tk.Label(form_frame, text="Username:", font=("Helvetica", 16), 
+                bg="#EBF5FB", fg=self.colors["dark"]).grid(row=0, column=0, pady=10, padx=5, sticky="e")
+        self.username_entry = tk.Entry(form_frame, font=("Helvetica", 16), width=15, bd=2, relief="solid")
+        self.username_entry.grid(row=0, column=1, pady=10, padx=5)
 
-        tk.Label(form_frame, text="Password:", font=("Helvetica", 16)).grid(row=1, column=0, pady=5, padx=5, sticky="e")
-        self.password_entry = tk.Entry(form_frame, font=("Helvetica", 16), show="*")
-        self.password_entry.grid(row=1, column=1, pady=5, padx=5)
+        tk.Label(form_frame, text="Password:", font=("Helvetica", 16), 
+                bg="#EBF5FB", fg=self.colors["dark"]).grid(row=1, column=0, pady=10, padx=5, sticky="e")
+        self.password_entry = tk.Entry(form_frame, font=("Helvetica", 16), show="*", width=15, bd=2, relief="solid")
+        self.password_entry.grid(row=1, column=1, pady=10, padx=5)
 
-        button_frame = tk.Frame(frame)
-        button_frame.pack(pady=10)
-        tk.Button(button_frame, text="Login", font=("Helvetica", 16), command=self.login, bg="#28B463", fg="white").grid(row=0, column=0, padx=10)
-        tk.Button(button_frame, text="Sign Up", font=("Helvetica", 16), command=self.register, bg="#F39C12", fg="white").grid(row=0, column=1, padx=10)
+        button_frame = tk.Frame(form_frame, bg="#EBF5FB")
+        button_frame.grid(row=2, column=0, columnspan=2, pady=15)
+        
+        login_btn = tk.Button(button_frame, text="Login", font=("Helvetica", 14, "bold"), 
+                            command=self.login, bg=self.colors["primary"], fg="white", 
+                            width=8, bd=0, padx=10, pady=5)
+        login_btn.grid(row=0, column=0, padx=10)
+        
+        signup_btn = tk.Button(button_frame, text="Sign Up", font=("Helvetica", 14), 
+                             command=self.register, bg=self.colors["secondary"], fg="white", 
+                             width=8, bd=0, padx=10, pady=5)
+        signup_btn.grid(row=0, column=1, padx=10)
 
     def login(self):
         username = self.username_entry.get().strip()
@@ -108,17 +146,24 @@ class SudokuGUI:
     def create_home_screen(self):
         """Create a home screen with game options"""
         self.clear_root()
+        self.root.configure(bg="#EBF5FB")  # Apply background
         
         # Main frame
-        main_frame = tk.Frame(self.root)
-        main_frame.pack(pady=50, fill="both", expand=True)
+        main_frame = tk.Frame(self.root, bg="#EBF5FB")
+        main_frame.pack(pady=30, fill="both", expand=True)
+        
+        # Title
+        title = tk.Label(main_frame, text="Sudoku", font=("Helvetica", 36, "bold"), 
+                        fg=self.colors["primary"], bg="#EBF5FB")
+        title.pack(pady=5)
         
         # Welcome header with user statistics
-        welcome_frame = tk.Frame(main_frame)
+        welcome_frame = tk.Frame(main_frame, bg="#EBF5FB")
         welcome_frame.pack(pady=10, fill="x")
         
         welcome_text = f"Welcome! Games Played: {self.user_stats['puzzles_played']} | Games Won: {self.user_stats['puzzles_solved']} | Win Rate: {self.user_stats['win_percentage']:.1f}%"
-        tk.Label(welcome_frame, text=welcome_text, font=("Helvetica", 14)).pack(pady=5)
+        tk.Label(welcome_frame, text=welcome_text, font=("Helvetica", 14), 
+                bg="#EBF5FB", fg=self.colors["dark"]).pack(pady=5)
         
         # Logout button in top right
         logout_btn = tk.Button(
@@ -126,15 +171,18 @@ class SudokuGUI:
             text="Logout", 
             font=("Helvetica", 12), 
             command=self.logout, 
-            bg="#7D3C98", 
+            bg=self.colors["accent"], 
             fg="white",
-            width=8
+            width=8,
+            bd=0,
+            padx=10,
+            pady=5
         )
         logout_btn.place(relx=1.0, rely=0.0, anchor="ne")
         
-        # Buttons frame
-        buttons_frame = tk.Frame(main_frame)
-        buttons_frame.pack(pady=50)
+        # Buttons frame with card-like appearance
+        buttons_frame = tk.Frame(main_frame, bg=self.colors["light"], bd=2, relief="solid", padx=30, pady=30)
+        buttons_frame.pack(pady=30)
         
         # New Game button (opens difficulty selection)
         new_game_btn = tk.Button(
@@ -142,10 +190,11 @@ class SudokuGUI:
             text="New Game",
             font=("Helvetica", 16, "bold"),
             command=self.show_difficulty_selection,
-            bg="#2ECC71",
+            bg=self.colors["secondary"],
             fg="white",
             width=15,
-            height=2
+            height=2,
+            bd=0
         )
         new_game_btn.pack(pady=15)
         
@@ -155,10 +204,11 @@ class SudokuGUI:
             text="Leaderboard",
             font=("Helvetica", 16),
             command=self.show_leaderboard,
-            bg="#9B59B6",
+            bg=self.colors["accent"],
             fg="white",
             width=15,
-            height=2
+            height=2,
+            bd=0
         )
         leaderboard_btn.pack(pady=15)
         
@@ -170,13 +220,14 @@ class SudokuGUI:
                 text="Continue Game",
                 font=("Helvetica", 16),
                 command=lambda: self.create_game_screen(False, True),  # False for new_game, True for continue_game
-                bg="#3498DB",
+                bg=self.colors["primary"],
                 fg="white",
                 width=15,
-                height=2
+                height=2,
+                bd=0
             )
             continue_btn.pack(pady=15)
-    
+            
     def check_saved_game_exists(self):
         """Check if a saved game exists for the current user"""
         try:
@@ -187,10 +238,11 @@ class SudokuGUI:
     
     def show_difficulty_selection(self, is_new_game=False):
         """Show difficulty selection dialog"""
-        # Create a new top-level window
+        # Create a new top-level window with improved styling
         difficulty_window = Toplevel(self.root)
         difficulty_window.title("Select Difficulty")
-        difficulty_window.geometry("300x300")
+        difficulty_window.geometry("300x350")
+        difficulty_window.configure(bg="#EBF5FB")  # Apply background
         difficulty_window.transient(self.root)  # Set to be on top of the main window
         difficulty_window.grab_set()  # Modal window
         
@@ -202,25 +254,41 @@ class SudokuGUI:
         y = (difficulty_window.winfo_screenheight() // 2) - (height // 2)
         difficulty_window.geometry('{}x{}+{}+{}'.format(width, height, x, y))
         
-        # Title
+        # Title with attractive styling
         tk.Label(
             difficulty_window, 
             text="Select Difficulty", 
-            font=("Helvetica", 16, "bold")
+            font=("Helvetica", 22, "bold"),
+            fg=self.colors["primary"],
+            bg="#EBF5FB"
         ).pack(pady=20)
         
-        # Difficulty levels frame
-        levels_frame = tk.Frame(difficulty_window)
-        levels_frame.pack(pady=10)
+        # Description
+        tk.Label(
+            difficulty_window,
+            text="Choose a difficulty level for your game:",
+            font=("Helvetica", 12),
+            fg=self.colors["dark"],
+            bg="#EBF5FB"
+        ).pack(pady=5)
         
-        # Easy button
+        # Difficulty levels frame with card-like appearance
+        levels_frame = tk.Frame(difficulty_window, bg=self.colors["light"], 
+                              bd=2, relief="solid", padx=20, pady=20)
+        levels_frame.pack(pady=15, padx=20, fill="both", expand=True)
+        
+        # Easy button with improved styling
         easy_btn = tk.Button(
             levels_frame,
             text="Easy",
-            font=("Helvetica", 14),
-            bg="#2ECC71",
+            font=("Helvetica", 14, "bold"),
+            bg=self.colors["secondary"],
             fg="white",
-            width=10,
+            width=12,
+            height=1,
+            bd=0,
+            padx=10,
+            pady=8,
             command=lambda: self.start_game_with_difficulty("easy", difficulty_window, is_new_game)
         )
         easy_btn.pack(pady=10)
@@ -229,10 +297,14 @@ class SudokuGUI:
         medium_btn = tk.Button(
             levels_frame,
             text="Medium",
-            font=("Helvetica", 14),
-            bg="#F39C12",
+            font=("Helvetica", 14, "bold"),
+            bg=self.colors["info"],
             fg="white",
-            width=10,
+            width=12,
+            height=1,
+            bd=0,
+            padx=10,
+            pady=8,
             command=lambda: self.start_game_with_difficulty("medium", difficulty_window, is_new_game)
         )
         medium_btn.pack(pady=10)
@@ -241,10 +313,14 @@ class SudokuGUI:
         hard_btn = tk.Button(
             levels_frame,
             text="Hard",
-            font=("Helvetica", 14),
-            bg="#E74C3C",
+            font=("Helvetica", 14, "bold"),
+            bg=self.colors["warning"],
             fg="white",
-            width=10,
+            width=12,
+            height=1,
+            bd=0,
+            padx=10,
+            pady=8,
             command=lambda: self.start_game_with_difficulty("hard", difficulty_window, is_new_game)
         )
         hard_btn.pack(pady=10)
@@ -267,6 +343,7 @@ class SudokuGUI:
             
     def create_game_screen(self, new_game=False, continue_game=False):
         self.clear_root()
+        self.root.configure(bg="#EBF5FB")  # Apply background
         
         # If continuing a game, force load saved game
         if continue_game:
@@ -311,18 +388,24 @@ class SudokuGUI:
                 except Exception as e:
                     messagebox.showerror("Error", f"Could not create new game: {e}")
         
-        # Main container frame
-        main_container = tk.Frame(self.root)
-        main_container.pack(fill="both", expand=True, padx=10, pady=10)
+        # Main container frame with cleaner design
+        main_container = tk.Frame(self.root, bg="#EBF5FB", padx=15, pady=15)
+        main_container.pack(fill="both", expand=True)
         
         # Top stats and logout frame
-        top_frame = tk.Frame(main_container)
+        top_frame = tk.Frame(main_container, bg="#EBF5FB")
         top_frame.pack(fill="x", pady=5)
+        
+        # Game title
+        title = tk.Label(top_frame, text="Sudoku", font=("Helvetica", 22, "bold"), 
+                        fg=self.colors["primary"], bg="#EBF5FB")
+        title.pack(pady=5)
         
         # Stats display
         stats_text = f"Games Played: {self.user_stats['puzzles_played']} | Games Won: {self.user_stats['puzzles_solved']} | Win Rate: {self.user_stats['win_percentage']:.1f}%"
-        stats_label = tk.Label(top_frame, text=stats_text, font=("Helvetica", 12))
-        stats_label.pack(side="left")
+        stats_label = tk.Label(top_frame, text=stats_text, font=("Helvetica", 12), 
+                              bg="#EBF5FB", fg=self.colors["dark"])
+        stats_label.pack(pady=5)
         
         # Logout button (top right)
         logout_btn = tk.Button(
@@ -330,23 +413,27 @@ class SudokuGUI:
             text="Logout", 
             font=("Helvetica", 12), 
             command=self.logout,
-            bg="#7D3C98", 
-            fg="white"
+            bg=self.colors["accent"], 
+            fg="white",
+            bd=0,
+            padx=10,
+            pady=3
         )
-        logout_btn.pack(side="right")
+        logout_btn.place(relx=1.0, rely=0.0, anchor="ne")
         
         # Game info display (hints used)
-        info_frame = tk.Frame(main_container)
+        info_frame = tk.Frame(main_container, bg="#EBF5FB")
         info_frame.pack(pady=5)
-        self.hints_label = tk.Label(info_frame, text=f"Hints Used: {self.hints_used}/2", font=("Helvetica", 12))
+        self.hints_label = tk.Label(info_frame, text=f"Hints Used: {self.hints_used}/2", 
+                                   font=("Helvetica", 14, "bold"), bg="#EBF5FB", fg=self.colors["info"])
         self.hints_label.pack()
         
-        # Sudoku board grid
+        # Sudoku board grid with nicer styling
         self.entries = []
-        board_frame = tk.Frame(main_container)
-        board_frame.pack(pady=10)
+        board_frame = tk.Frame(main_container, bg=self.colors["cell_border"], bd=3, relief="solid")
+        board_frame.pack(pady=15, padx=15)
         
-        # Create the Sudoku grid
+        # Create the Sudoku grid with better cell styling
         for i in range(9):
             row_entries = []
             for j in range(9):
@@ -357,11 +444,11 @@ class SudokuGUI:
                 if j % 3 == 0 and j > 0:
                     border_thickness = 3
                 
-                e = tk.Entry(board_frame, width=2, font=("Helvetica", 20), justify="center", 
+                e = tk.Entry(board_frame, width=2, font=("Helvetica", 22, "bold"), justify="center", 
                            bd=border_thickness, relief="ridge")
-                e.grid(row=i, column=j, padx=1, pady=1)
+                e.grid(row=i, column=j, padx=0, pady=0)
                 
-                # Set focus tracking for hint feature
+                # Set focus tracking for hint feature with visual feedback
                 e.bind("<FocusIn>", lambda event, row=i, col=j: self.update_focus(row, col))
                 
                 # Populate the board
@@ -369,38 +456,82 @@ class SudokuGUI:
                     e.insert(0, str(self.board[i][j]))
                     # Distinguish between original cells and user/hint filled cells
                     if self.original_board[i][j] != 0:
-                        e.config(state="disabled", disabledforeground="black")
+                        e.config(state="disabled", disabledforeground=self.colors["dark"], 
+                                bg=self.colors["cell_original"])  # Gray background for original cells
                     else:
-                        # Apply highlight for hints
-                        e.config(bg="#D4E6F1")
+                        # Non-original filled cells (hints or user-entered)
+                        e.config(bg=self.colors["cell_hint"])  # Light blue for hints
+                else:
+                    e.config(bg=self.colors["white"])  # White background for empty cells
+                
                 row_entries.append(e)
             self.entries.append(row_entries)
         
+        # Buttons below the puzzle in a stylish container
+        btn_container = tk.Frame(main_container, bg="#EBF5FB")
+        btn_container.pack(pady=10)
+        
         # Buttons below the puzzle (line 1)
-        btn_frame1 = tk.Frame(main_container)
+        btn_frame1 = tk.Frame(btn_container, bg="#EBF5FB")
         btn_frame1.pack(pady=5)
-        tk.Button(btn_frame1, text="Hint", font=("Helvetica", 14), command=self.hint, bg="#3498DB", fg="white", width=8).grid(row=0, column=0, padx=5)
-        tk.Button(btn_frame1, text="Solve", font=("Helvetica", 14), command=self.solve_board, bg="#1ABC9C", fg="white", width=8).grid(row=0, column=1, padx=5)
-        tk.Button(btn_frame1, text="Check Solution", font=("Helvetica", 14), command=self.check_solution, bg="#F39C12", fg="white", width=14).grid(row=0, column=2, padx=5)
+        
+        # Style buttons with more modern look
+        tk.Button(btn_frame1, text="Hint", font=("Helvetica", 14), 
+                command=self.hint, bg=self.colors["primary"], fg="white", 
+                width=8, bd=0, padx=10, pady=5).grid(row=0, column=0, padx=5)
+                
+        tk.Button(btn_frame1, text="Solve", font=("Helvetica", 14), 
+                command=self.solve_board, bg=self.colors["secondary"], fg="white", 
+                width=8, bd=0, padx=10, pady=5).grid(row=0, column=1, padx=5)
+                
+        tk.Button(btn_frame1, text="Check Solution", font=("Helvetica", 14), 
+                command=self.check_solution, bg=self.colors["info"], fg="white", 
+                width=14, bd=0, padx=10, pady=5).grid(row=0, column=2, padx=5)
         
         # Buttons below the puzzle (line 2)
-        btn_frame2 = tk.Frame(main_container)
+        btn_frame2 = tk.Frame(btn_container, bg="#EBF5FB")
         btn_frame2.pack(pady=5)
-        tk.Button(btn_frame2, text="Reset", font=("Helvetica", 14), command=self.reset_board, bg="#E74C3C", fg="white", width=10).grid(row=0, column=0, padx=5)
-        tk.Button(btn_frame2, text="New Game", font=("Helvetica", 14), command=lambda: self.show_difficulty_selection(True), bg="#2ECC71", fg="white", width=10).grid(row=0, column=1, padx=5)
+        
+        tk.Button(btn_frame2, text="Reset", font=("Helvetica", 14), 
+                command=self.reset_board, bg=self.colors["warning"], fg="white", 
+                width=10, bd=0, padx=10, pady=5).grid(row=0, column=0, padx=5)
+                
+        tk.Button(btn_frame2, text="New Game", font=("Helvetica", 14), 
+                command=lambda: self.show_difficulty_selection(True), bg=self.colors["secondary"], fg="white", 
+                width=10, bd=0, padx=10, pady=5).grid(row=0, column=1, padx=5)
         
         # Buttons below the puzzle (line 3)
-        btn_frame3 = tk.Frame(main_container)
+        btn_frame3 = tk.Frame(btn_container, bg="#EBF5FB")
         btn_frame3.pack(pady=5)
-        tk.Button(btn_frame3, text="Leaderboard", font=("Helvetica", 14), command=self.show_leaderboard, bg="#9B59B6", fg="white", width=14).pack()
+        
+        tk.Button(btn_frame3, text="Leaderboard", font=("Helvetica", 14), 
+                command=self.show_leaderboard, bg=self.colors["accent"], fg="white", 
+                width=14, bd=0, padx=10, pady=5).pack()
         
         # Ensure game state is saved when closing
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
 
     def update_focus(self, row, col):
-        """Track the currently focused cell for targeted hints"""
+        """Track the currently focused cell for targeted hints and provide visual feedback"""
+        # Reset background of previously focused cell if it exists
+        if self.current_focus:
+            prev_row, prev_col = self.current_focus
+            # Only update if it's not a fixed cell
+            if self.original_board[prev_row][prev_col] == 0:
+                # Restore appropriate background based on content
+                entry_value = self.entries[prev_row][prev_col].get()
+                if entry_value:
+                    self.entries[prev_row][prev_col].config(bg=self.colors["cell_user"])
+                else:
+                    self.entries[prev_row][prev_col].config(bg=self.colors["white"])
+        
+        # Update current focus
         self.current_focus = (row, col)
-
+        
+        # Highlight new focused cell if it's not a fixed cell
+        if self.original_board[row][col] == 0:
+            self.entries[row][col].config(bg=self.colors["cell_selected"])
+            
     def generate_playable_board(self, difficulty="medium"):
         """Generate a board with a guaranteed single solution"""
         # We'll use the improved generate_board function from sudoku_logic
@@ -539,51 +670,31 @@ class SudokuGUI:
         self.hints_used += 1
         self.hints_label.config(text=f"Hints Used: {self.hints_used}/2")
         
-        # Get current board state
-        current_board = []
-        for i in range(9):
-            row = []
-            for j in range(9):
-                entry_value = self.entries[i][j].get()
-                try:
-                    val = int(entry_value) if entry_value else 0
-                except ValueError:
-                    val = 0
-                row.append(val)
-            current_board.append(row)
-        
-        # Check if the current board is valid before attempting to solve
-        if not is_valid_board(current_board):
-            messagebox.showerror("Invalid Board", "The current board has conflicts (duplicate numbers). Please fix them first.")
-            # Revert the hint counter since we didn't actually use a hint
-            self.hints_used -= 1
-            self.hints_label.config(text=f"Hints Used: {self.hints_used}/2")
-            return
-            
-        # Create a copy of the board for solving
-        solution_board = copy.deepcopy(current_board)
+        # Create a clean copy of the original board for solving
+        solution_board = copy.deepcopy(self.original_board)
         if solve(solution_board):
             # If a cell is focused, provide hint for that specific cell
             if self.current_focus:
                 row, col = self.current_focus
-                if current_board[row][col] == 0:  # Only provide hint if cell is empty
-                    correct_val = solution_board[row][col]
-                    self.entries[row][col].delete(0, tk.END)
-                    self.entries[row][col].insert(0, str(correct_val))
-                    self.entries[row][col].config(bg="#D4E6F1")  # Light blue background for hints
-                    self.save_game()
-                    return
-                else:
-                    messagebox.showinfo("Hint", "This cell is already filled. Please select an empty cell.")
-                    # Revert the hint counter since we didn't actually use a hint
-                    self.hints_used -= 1
-                    self.hints_label.config(text=f"Hints Used: {self.hints_used}/2")
-                    return
+                # Provide hint regardless of current value (correct or incorrect)
+                correct_val = solution_board[row][col]
+                self.entries[row][col].delete(0, tk.END)
+                self.entries[row][col].insert(0, str(correct_val))
+                self.entries[row][col].config(bg="#D4E6F1")  # Light blue background for hints
+                self.save_game()
+                return
             
             # If no cell is focused, find first empty cell
             for i in range(9):
                 for j in range(9):
-                    if current_board[i][j] == 0:
+                    # Check if cell is empty or has an incorrect value
+                    entry_value = self.entries[i][j].get()
+                    try:
+                        current_val = int(entry_value) if entry_value else 0
+                    except ValueError:
+                        current_val = 0
+                    
+                    if current_val != solution_board[i][j]:
                         correct_val = solution_board[i][j]
                         self.entries[i][j].delete(0, tk.END)
                         self.entries[i][j].insert(0, str(correct_val))
@@ -591,7 +702,7 @@ class SudokuGUI:
                         self.save_game()
                         return
                         
-            messagebox.showinfo("Hint", "No empty cells available for a hint.")
+            messagebox.showinfo("Hint", "No incorrect or empty cells available for a hint.")
             # Revert the hint counter
             self.hints_used -= 1
             self.hints_label.config(text=f"Hints Used: {self.hints_used}/2")
@@ -599,12 +710,7 @@ class SudokuGUI:
             # Revert the hint counter since we couldn't provide a hint
             self.hints_used -= 1
             self.hints_label.config(text=f"Hints Used: {self.hints_used}/2")
-            
-            # Attempt to identify the cause of the error
-            if not is_valid_board(current_board):
-                messagebox.showerror("Error", "The current board has conflicts. Please check for duplicate numbers in rows, columns, or 3x3 boxes.")
-            else:
-                messagebox.showerror("Error", "Unable to compute hint. The current board configuration may not have a valid solution.")
+            messagebox.showerror("Error", "Unable to compute hint. Please try again.")
 
     def check_solution(self):
         """Check if the current board state is correct"""
@@ -652,32 +758,14 @@ class SudokuGUI:
             messagebox.showinfo("Incorrect", "Your solution contains errors. Please check and try again.")
 
     def solve_board(self):
-        # Get current board state
-        current_board = []
-        for i in range(9):
-            row = []
-            for j in range(9):
-                entry_value = self.entries[i][j].get()
-                try:
-                    val = int(entry_value) if entry_value else 0
-                except ValueError:
-                    val = 0
-                row.append(val)
-            current_board.append(row)
-            
-        # Check if the current board is valid before attempting to solve
-        if not is_valid_board(current_board):
-            messagebox.showerror("Invalid Board", "The current board has conflicts (duplicate numbers). Please fix them first.")
-            return
-            
-        # Create a copy for solving to avoid modifying the original
-        solution_board = copy.deepcopy(current_board)
+        # Mark that the solve algorithm was used
+        self.solved_by_algorithm = True
+        
+        # Create a solution based on the original board
+        solution_board = copy.deepcopy(self.original_board)
         
         if solve(solution_board):
-            # Mark that the solve algorithm was used
-            self.solved_by_algorithm = True
-            
-            # Update the board with the solution
+            # Update the board with the solution, replacing all user inputs
             for i in range(9):
                 for j in range(9):
                     if self.original_board[i][j] == 0:  # Only update non-original cells
@@ -688,11 +776,7 @@ class SudokuGUI:
             self.save_game(completed=True)
             messagebox.showinfo("Solved", "Puzzle solved! Note that using the solve button means this won't count as a win.")
         else:
-            # Attempt to identify the cause of the error
-            if not is_valid_board(current_board):
-                messagebox.showerror("Error", "The current board has conflicts. Please check for duplicate numbers in rows, columns, or 3x3 boxes.")
-            else:
-                messagebox.showerror("Error", "No solution exists for the current board. There might be a mistake in the entries.")
+            messagebox.showerror("Error", "No solution exists for this puzzle. Please try a different puzzle.")
 
     def show_leaderboard(self):
         """Display leaderboard in a new window"""
@@ -762,4 +846,4 @@ def run_frontend():
     root.mainloop()
 
 if __name__ == "__main__":
-    run_frontend() 
+    run_frontend()
