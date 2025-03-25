@@ -86,6 +86,9 @@ class SudokuGUI:
                 bg="#EBF5FB", fg=self.colors["dark"]).grid(row=0, column=0, pady=10, padx=5, sticky="e")
         self.username_entry = tk.Entry(form_frame, font=("Helvetica", 16), width=15, bd=2, relief="solid")
         self.username_entry.grid(row=0, column=1, pady=10, padx=5)
+        
+        # Set focus to username entry
+        self.username_entry.focus_set()
 
         tk.Label(form_frame, text="Password:", font=("Helvetica", 16), 
                 bg="#EBF5FB", fg=self.colors["dark"]).grid(row=1, column=0, pady=10, padx=5, sticky="e")
@@ -104,6 +107,13 @@ class SudokuGUI:
                              command=self.register, bg=self.colors["secondary"], fg="white", 
                              width=8, bd=0, padx=10, pady=5)
         signup_btn.grid(row=0, column=1, padx=10)
+        
+        # Bind Enter key to login function
+        self.username_entry.bind("<Return>", lambda event: self.password_entry.focus_set())
+        self.password_entry.bind("<Return>", lambda event: self.login())
+        
+        # Bind Shift+Enter to register function for quick signup
+        self.password_entry.bind("<Shift-Return>", lambda event: self.register())
 
     def login(self):
         username = self.username_entry.get().strip()
@@ -277,53 +287,46 @@ class SudokuGUI:
                               bd=2, relief="solid", padx=20, pady=20)
         levels_frame.pack(pady=15, padx=20, fill="both", expand=True)
         
+        # Create a consistent style for all difficulty buttons
+        button_style = {
+            "font": ("Helvetica", 14, "bold"),
+            "fg": "white",
+            "width": 12,
+            "height": 1,
+            "bd": 0,
+            "padx": 10,
+            "pady": 8
+        }
+        
         # Easy button with improved styling
         easy_btn = tk.Button(
             levels_frame,
             text="Easy",
-            font=("Helvetica", 14, "bold"),
             bg=self.colors["secondary"],
-            fg="white",
-            width=12,
-            height=1,
-            bd=0,
-            padx=10,
-            pady=8,
-            command=lambda: self.start_game_with_difficulty("easy", difficulty_window, is_new_game)
+            command=lambda: self.start_game_with_difficulty("easy", difficulty_window, is_new_game),
+            **button_style
         )
-        easy_btn.pack(pady=10)
+        easy_btn.pack(pady=10, fill="x")
         
         # Medium button
         medium_btn = tk.Button(
             levels_frame,
             text="Medium",
-            font=("Helvetica", 14, "bold"),
             bg=self.colors["info"],
-            fg="white",
-            width=12,
-            height=1,
-            bd=0,
-            padx=10,
-            pady=8,
-            command=lambda: self.start_game_with_difficulty("medium", difficulty_window, is_new_game)
+            command=lambda: self.start_game_with_difficulty("medium", difficulty_window, is_new_game),
+            **button_style
         )
-        medium_btn.pack(pady=10)
+        medium_btn.pack(pady=10, fill="x")
         
         # Hard button
         hard_btn = tk.Button(
             levels_frame,
             text="Hard",
-            font=("Helvetica", 14, "bold"),
             bg=self.colors["warning"],
-            fg="white",
-            width=12,
-            height=1,
-            bd=0,
-            padx=10,
-            pady=8,
-            command=lambda: self.start_game_with_difficulty("hard", difficulty_window, is_new_game)
+            command=lambda: self.start_game_with_difficulty("hard", difficulty_window, is_new_game),
+            **button_style
         )
-        hard_btn.pack(pady=10)
+        hard_btn.pack(pady=10, fill="x")
     
     def start_game_with_difficulty(self, difficulty, dialog_window, is_new_game):
         """Start a new game with the selected difficulty"""
