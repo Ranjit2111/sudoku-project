@@ -50,6 +50,9 @@ class SudokuGUI:
         self.hints_used = 0  # Track hints used in current game
         self.solved_by_algorithm = False  # Track if solve button was used
         self.user_stats = {"puzzles_played": 0, "puzzles_solved": 0, "win_percentage": 0}
+        self.time_remaining = 30 * 60  # 30 minutes in seconds
+        self.timer_running = False
+        self.time_expired = False
         
         # Check backend connection before proceeding
         if not check_backend_connection():
@@ -360,6 +363,8 @@ class SudokuGUI:
                 self.original_board = loaded_game["original_board"]
                 self.hints_used = loaded_game.get("hints_used", 0)
                 self.solved_by_algorithm = loaded_game.get("solved_by_algorithm", False)
+                self.time_remaining = loaded_game.get("time_remaining", 30 * 60)
+                self.time_expired = loaded_game.get("time_expired", False)
             else:
                 # If somehow we can't load the game, go back to the home screen
                 messagebox.showerror("Error", "Could not load the saved game.")
@@ -376,6 +381,8 @@ class SudokuGUI:
             self.original_board = [[cell for cell in row] for row in self.board]
             self.hints_used = 0
             self.solved_by_algorithm = False
+            self.time_remaining = 30 * 60  # Reset timer to 30 minutes
+            self.time_expired = False
         
             # Save new game with is_new_game flag if it's a new game (not initial load)
             if new_game:
@@ -387,6 +394,8 @@ class SudokuGUI:
                         "completed": False,
                         "hints_used": 0,
                         "solved_by_algorithm": False,
+                        "time_remaining": self.time_remaining,
+                        "time_expired": self.time_expired,
                         "is_new_game": True
                     })
                     
@@ -403,8 +412,24 @@ class SudokuGUI:
         top_frame = tk.Frame(main_container, bg="#EBF5FB")
         top_frame.pack(fill="x", pady=5)
         
-        # Game title
-        title = tk.Label(top_frame, text="Sudoku", font=("Helvetica", 22, "bold"), 
+        # Timer display (top left)
+        timer_frame = tk.Frame(top_frame, bg="#EBF5FB")
+        timer_frame.pack(side="left", padx=10)
+        
+        self.timer_label = tk.Label(timer_frame, 
+                                    text=self.format_time(self.time_remaining), 
+                                    font=("Helvetica", 16, "bold"), 
+                                    bg="#EBF5FB", 
+                                    fg=self.colors["primary"])
+        self.timer_label.pack(side="left")
+        
+        # Start/restart the timer
+        self.start_timer()
+        
+        # Game title (centered)
+        title_frame = tk.Frame(top_frame, bg="#EBF5FB")
+        title_frame.pack(side="top", fill="x")
+        title = tk.Label(title_frame, text="Sudoku", font=("Helvetica", 22, "bold"), 
                         fg=self.colors["primary"], bg="#EBF5FB")
         title.pack(pady=5)
         
@@ -572,6 +597,9 @@ class SudokuGUI:
         except Exception:
             pass  # Ignore errors here
         
+        # Stop the current timer if running
+        self.stop_timer()
+        
         # Generate a new board and refresh the UI
         if hasattr(self, 'selected_difficulty'):
             self.board = self.generate_playable_board(self.selected_difficulty)
@@ -581,6 +609,8 @@ class SudokuGUI:
         self.original_board = [[cell for cell in row] for row in self.board]
         self.hints_used = 0
         self.solved_by_algorithm = False
+        self.time_remaining = 30 * 60  # Reset timer to 30 minutes
+        self.time_expired = False
     
         # Save the new game with is_new_game flag set to True to increment the counter
         try:
@@ -591,6 +621,8 @@ class SudokuGUI:
                 "completed": False,
                 "hints_used": 0,
                 "solved_by_algorithm": False,
+                "time_remaining": self.time_remaining,
+                "time_expired": self.time_expired,
                 "is_new_game": True
             })
             
@@ -625,7 +657,9 @@ class SudokuGUI:
                         "board_state": json.loads(data["board_state"]),
                         "original_board": json.loads(data["original_board"]),
                         "hints_used": data.get("hints_used", 0),
-                        "solved_by_algorithm": data.get("solved_by_algorithm", False)
+                        "solved_by_algorithm": data.get("solved_by_algorithm", False),
+                        "time_remaining": data.get("time_remaining", 30 * 60),
+                        "time_expired": data.get("time_expired", False)
                     }
                     return result
             return None
@@ -659,7 +693,9 @@ class SudokuGUI:
                 "original_board": json.dumps(self.original_board),
                 "completed": completed,
                 "hints_used": self.hints_used,
-                "solved_by_algorithm": self.solved_by_algorithm
+                "solved_by_algorithm": self.solved_by_algorithm,
+                "time_remaining": self.time_remaining,
+                "time_expired": self.time_expired
             })
             
             if response.status_code != 200:
@@ -741,8 +777,8 @@ class SudokuGUI:
             
         # Check if the solution is valid
         if is_valid_board(current_board):
-            # Determine if this counts as a valid win (≤2 hints and no solve button)
-            valid_win = self.hints_used <= 2 and not self.solved_by_algorithm
+            # Determine if this counts as a valid win (≤2 hints, no solve button, and no time expired)
+            valid_win = self.hints_used <= 2 and not self.solved_by_algorithm and not self.time_expired
             
             if valid_win:
                 messagebox.showinfo("Correct", "Congratulations! Your solution is correct. This counts as a win!")
@@ -752,8 +788,13 @@ class SudokuGUI:
                     reason = "You used more than 2 hints."
                 elif self.solved_by_algorithm:
                     reason = "You used the solve button."
+                elif self.time_expired:
+                    reason = "You exceeded the 30-minute time limit."
                 
                 messagebox.showinfo("Correct", f"Your solution is correct, but it doesn't count as a win because {reason}")
+            
+            # Stop the timer
+            self.stop_timer()
             
             # Save the completed game with win status
             self.save_game(completed=True)
@@ -839,13 +880,53 @@ class SudokuGUI:
 
     def logout(self):
         self.save_game()
+        self.stop_timer()  # Stop the timer when logging out
         self.user_id = None
         self.board = None
         self.create_login_screen()
 
     def on_close(self):
         self.save_game()
+        self.stop_timer()  # Stop the timer when closing the app
         self.root.destroy()
+
+    def format_time(self, seconds):
+        """Format seconds into MM:SS format"""
+        minutes = seconds // 60
+        seconds = seconds % 60
+        return f"Time: {minutes:02d}:{seconds:02d}"
+        
+    def start_timer(self):
+        """Start or resume the timer countdown"""
+        if not self.timer_running and self.time_remaining > 0:
+            self.timer_running = True
+            self.update_timer()
+            
+    def stop_timer(self):
+        """Stop the timer"""
+        self.timer_running = False
+        
+    def update_timer(self):
+        """Update the timer display and check if time is up"""
+        if self.timer_running and self.time_remaining > 0:
+            self.time_remaining -= 1
+            self.timer_label.config(text=self.format_time(self.time_remaining))
+            
+            # Change color to warning when less than 5 minutes remaining
+            if self.time_remaining < 300 and self.time_remaining > 0:
+                self.timer_label.config(fg=self.colors["warning"])
+                
+            # Check if time is up
+            if self.time_remaining <= 0:
+                self.time_expired = True
+                self.time_remaining = 0
+                self.timer_label.config(text=self.format_time(0), fg=self.colors["warning"])
+                messagebox.showwarning("Time Expired", 
+                                     "Time limit exceeded! You can continue playing, but no points will be awarded for completing this puzzle.")
+                self.save_game()  # Save the time_expired status
+            else:
+                # Schedule the next update after 1 second
+                self.root.after(1000, self.update_timer)
 
 def run_frontend():
     root = tk.Tk()
